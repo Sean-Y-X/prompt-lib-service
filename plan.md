@@ -64,7 +64,7 @@ export const promptVersions = pgTable("prompt_versions", {
 Indexes: GIN index on `prompts.tags` for containment search; plain `ILIKE` on `title`/`description` (fine at this scale — document `pg_trgm`/full-text search as a noted future improvement, not built).
 
 **Update detection**: a custom prompt has an update available when `source.currentVersion > custom.syncedSourceVersion`.
-**Local-change detection**: compare the custom prompt's live fields against its own most recent `editedBy: 'internal'` version row (the last synced baseline).
+**Local-change detection**: compare the custom prompt's live fields against the merge base — the source prompt's snapshot at `custom.syncedSourceVersion` (looked up by versionNumber in the source's history).
 
 ## Q2 Reconciliation Logic — Field-Level 3-Way Merge
 

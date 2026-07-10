@@ -17,7 +17,9 @@ import {
  */
 export const promptKind = pgEnum("prompt_kind", ["internal", "custom"]);
 
-/** Who authored a given version snapshot. Drives baseline detection for merges. */
+/**
+ * Who authored a given version snapshot — provenance/audit metadata (and useful for the UI's history view).
+ */
 export const editedBy = pgEnum("edited_by", ["internal", "customer"]);
 
 export const prompts = pgTable(
@@ -57,9 +59,9 @@ export const prompts = pgTable(
 
 /**
  * Append-only history. Every edit to any prompt writes a new snapshot here rather
- * than mutating in place — this is what makes 3-way merges (base vs customer vs
- * internal) possible. `editedBy` lets us find a customer copy's last synced
- * baseline (its most recent `internal` snapshot).
+ * than mutating in place — this is what makes 3-way merges possible: the merge base
+ * is the SOURCE prompt's snapshot at the customer copy's `syncedSourceVersion`
+ * (looked up by versionNumber).
  */
 export const promptVersions = pgTable(
   "prompt_versions",
@@ -78,7 +80,9 @@ export const promptVersions = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [unique("prompt_versions_prompt_version_uq").on(t.promptId, t.versionNumber)],
+  (t) => [
+    unique("prompt_versions_prompt_version_uq").on(t.promptId, t.versionNumber),
+  ],
 );
 
 export type Prompt = typeof prompts.$inferSelect;

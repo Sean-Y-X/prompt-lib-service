@@ -24,7 +24,10 @@ export async function parseBody<T>(
 ): Promise<{ data: T } | { error: NextResponse }> {
   let raw: unknown;
   try {
-    raw = await req.json();
+    const text = await req.text();
+    // Treat an empty body as `{}` so schemas with all-optional fields (or defaults)
+    // accept bodyless POSTs (e.g. fork, accept-with-no-conflicts).
+    raw = text.trim() === "" ? {} : JSON.parse(text);
   } catch {
     return { error: jsonError("Invalid JSON body", 400) };
   }
