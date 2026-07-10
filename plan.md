@@ -16,7 +16,7 @@ Stack and design decisions below were reached through discussion and are treated
 | Database | Neon (serverless Postgres) | Drizzle is SQL-only; Postgres fits the relational versioning model in Q2; Neon = zero local setup, scale-to-zero, first-class Drizzle support, pairs natively with Vercel |
 | ORM | Drizzle | Required by assignment |
 | Deployment | Vercel + Neon, live demo link | Removes reviewer friction, standard modern pairing |
-| Components | shadcn/ui (Radix + Tailwind) | Fast, accessible, doesn't read as over-polished |
+| Components | shadcn/ui (Base UI + Tailwind) | Fast, accessible, doesn't read as over-polished |
 | Client data fetching | TanStack Query | Handles search-as-you-type race conditions and cross-view cache invalidation (mutation on one prompt must refresh both list and detail views) — meaningfully less ad hoc state than raw `fetch` for this app's interaction patterns |
 | API layer | Next.js Route Handlers (App Router), REST-shaped | Explicit evaluation criterion is "API design"; must be curl/Postman-able, not hidden behind Server Actions or RPC |
 | Validation | `zod`, generated from Drizzle schema via `drizzle-zod` where possible | Single source of truth across DB schema, validation, and TS types |
