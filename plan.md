@@ -20,7 +20,7 @@ Stack and design decisions below were reached through discussion and are treated
 | Client data fetching | TanStack Query | Handles search-as-you-type race conditions and cross-view cache invalidation (mutation on one prompt must refresh both list and detail views) — meaningfully less ad hoc state than raw `fetch` for this app's interaction patterns |
 | API layer | Next.js Route Handlers (App Router), REST-shaped | Explicit evaluation criterion is "API design"; must be curl/Postman-able, not hidden behind Server Actions or RPC |
 | Validation | `zod`, generated from Drizzle schema via `drizzle-zod` where possible | Single source of truth across DB schema, validation, and TS types |
-| AI provider | Google Gemini (`gemini-2.0-flash`) behind the **Vercel AI SDK** (`ai` + `@ai-sdk/google`) | Free tier, no card required (Claude has no free tier). AI SDK keeps the provider a one-line swap (`@ai-sdk/google` → `@ai-sdk/groq`) and `generateObject` returns a structured, zod-validated `{title, description, template, tags}` — reuses the same zod schemas and demonstrates provider-independence |
+| AI provider | Google Gemini (`gemini-3.1-flash-lite`) behind the **Vercel AI SDK** (`ai` + `@ai-sdk/google`) | Free tier, no card required (Claude has no free tier). AI SDK keeps the provider a one-line swap (`@ai-sdk/google` → `@ai-sdk/groq`) and `generateObject` returns a structured, zod-validated `{title, description, template, tags}` — reuses the same zod schemas and demonstrates provider-independence |
 
 ## Data Model
 
