@@ -4,8 +4,8 @@ import {
   type ConflictPicks,
   mergePrompt,
   type PromptContent,
-  type PromptMerge,
 } from "@/lib/merge";
+import type { UpdateStatus } from "@/lib/types";
 import { db } from "./index";
 import { type Prompt, prompts, promptVersions } from "./schema";
 
@@ -78,7 +78,11 @@ function tagsEqual(a: string[], b: string[]): boolean {
 }
 
 export async function getPromptById(id: string): Promise<Prompt | undefined> {
-  const [row] = await db.select().from(prompts).where(eq(prompts.id, id)).limit(1);
+  const [row] = await db
+    .select()
+    .from(prompts)
+    .where(eq(prompts.id, id))
+    .limit(1);
   return row;
 }
 
@@ -168,6 +172,16 @@ export async function updatePrompt(
       template: patch.template ?? current.template,
       tags: patch.tags ?? current.tags,
     };
+
+    // No-op guard: if the patch doesn't change anything, don't write a redundant
+    // version snapshot or bump currentVersion (mirrors acceptUpdate's guard).
+    const unchanged =
+      merged.title === current.title &&
+      merged.description === current.description &&
+      merged.template === current.template &&
+      tagsEqual(merged.tags, current.tags);
+    if (unchanged) return current;
+
     const nextVersion = current.currentVersion + 1;
     const editedBy = current.kind === "internal" ? "internal" : "customer";
 
@@ -206,7 +220,10 @@ export async function recordRender(id: string): Promise<Prompt | undefined> {
 export async function forkPrompt(
   sourceId: string,
   overrides?: { title?: string },
-): Promise<{ ok: true; prompt: Prompt } | { ok: false; reason: "not-found" | "not-internal" }> {
+): Promise<
+  | { ok: true; prompt: Prompt }
+  | { ok: false; reason: "not-found" | "not-internal" }
+> {
   return db.transaction(async (tx) => {
     const [source] = await tx
       .select()
@@ -214,7 +231,8 @@ export async function forkPrompt(
       .where(eq(prompts.id, sourceId))
       .limit(1);
     if (!source) return { ok: false, reason: "not-found" };
-    if (source.kind !== "internal") return { ok: false, reason: "not-internal" };
+    if (source.kind !== "internal")
+      return { ok: false, reason: "not-internal" };
 
     const content: PromptContent = {
       ...toContent(source),
@@ -239,23 +257,6 @@ export async function forkPrompt(
   });
 }
 
-export interface UpdateStatus {
-  /** Whether this prompt is a customer copy forked from an internal source. */
-  hasSource: boolean;
-  sourcePromptId: string | null;
-  /** The source has advanced past what this copy last synced. */
-  updateAvailable: boolean;
-  /** The customer has edited their copy away from the synced baseline. */
-  hasLocalChanges: boolean;
-  sourceVersion: number | null;
-  syncedVersion: number | null;
-  /**
-   * Field-level 3-way merge preview (base = source@syncedVersion, customer = this
-   * copy, internal = source's current content). Null for non-forked prompts.
-   */
-  merge: PromptMerge | null;
-}
-
 const NO_SOURCE_STATUS: Omit<UpdateStatus, "syncedVersion"> = {
   hasSource: false,
   sourcePromptId: null,
@@ -266,20 +267,29 @@ const NO_SOURCE_STATUS: Omit<UpdateStatus, "syncedVersion"> = {
 };
 
 /** Compute the reconciliation status + merge preview for a prompt. */
-export async function getUpdateStatus(id: string): Promise<UpdateStatus | undefined> {
+export async function getUpdateStatus(
+  id: string,
+): Promise<UpdateStatus | undefined> {
   const custom = await getPromptById(id);
   if (!custom) return undefined;
 
   if (custom.kind !== "custom" || !custom.sourcePromptId) {
-    return { ...NO_SOURCE_STATUS, syncedVersion: custom.syncedSourceVersion ?? null };
+    return {
+      ...NO_SOURCE_STATUS,
+      syncedVersion: custom.syncedSourceVersion ?? null,
+    };
   }
   const source = await getPromptById(custom.sourcePromptId);
   if (!source) {
-    return { ...NO_SOURCE_STATUS, syncedVersion: custom.syncedSourceVersion ?? null };
+    return {
+      ...NO_SOURCE_STATUS,
+      syncedVersion: custom.syncedSourceVersion ?? null,
+    };
   }
 
   const synced = custom.syncedSourceVersion ?? 0;
-  const base = (await getVersionContent(db, source.id, synced)) ?? toContent(source);
+  const base =
+    (await getVersionContent(db, source.id, synced)) ?? toContent(source);
   const customerContent = toContent(custom);
   const merge = mergePrompt(base, customerContent, toContent(source));
 
@@ -332,9 +342,11 @@ export async function acceptUpdate(
     if (!source) return { ok: false, reason: "no-source" };
 
     const synced = custom.syncedSourceVersion ?? 0;
-    if (source.currentVersion <= synced) return { ok: false, reason: "no-update" };
+    if (source.currentVersion <= synced)
+      return { ok: false, reason: "no-update" };
 
-    const base = (await getVersionContent(tx, source.id, synced)) ?? toContent(source);
+    const base =
+      (await getVersionContent(tx, source.id, synced)) ?? toContent(source);
     const merge = mergePrompt(base, toContent(custom), toContent(source));
 
     if (!merge.hasChanges) {
@@ -392,7 +404,8 @@ export async function dismissUpdate(id: string): Promise<ReconcileResult> {
     if (!source) return { ok: false, reason: "no-source" };
 
     const synced = custom.syncedSourceVersion ?? 0;
-    if (source.currentVersion <= synced) return { ok: false, reason: "no-update" };
+    if (source.currentVersion <= synced)
+      return { ok: false, reason: "no-update" };
 
     const [updated] = await tx
       .update(prompts)

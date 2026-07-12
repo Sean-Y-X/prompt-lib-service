@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { recordRender } from "@/db/queries";
 import { notFound, parseBody } from "@/lib/http";
-import { renderSchema } from "@/lib/schemas";
 import { renderTemplate } from "@/lib/render-template";
+import { renderSchema } from "@/lib/schemas";
 
 // POST /api/prompts/:id/render — substitute {{variables}} and track usage.
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const { id } = await params;
   const parsed = await parseBody(req, renderSchema);
   if ("error" in parsed) return parsed.error;

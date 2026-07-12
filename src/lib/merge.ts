@@ -58,7 +58,11 @@ export interface PromptMerge {
   hasChanges: boolean;
 }
 
-function mergeScalar(base: string, customer: string, internal: string): ScalarMerge {
+function mergeScalar(
+  base: string,
+  customer: string,
+  internal: string,
+): ScalarMerge {
   if (customer === internal) {
     return { status: "unchanged", base, customer, internal, value: customer };
   }
@@ -80,7 +84,11 @@ function mergeScalar(base: string, customer: string, internal: string): ScalarMe
  * added is included. This deliberately avoids a naive `customer ∪ internal`, which
  * would resurrect a tag the customer explicitly removed.
  */
-function mergeTags(base: string[], customer: string[], internal: string[]): TagMerge {
+function mergeTags(
+  base: string[],
+  customer: string[],
+  internal: string[],
+): TagMerge {
   const baseSet = new Set(base);
   const customerSet = new Set(customer);
   const internalSet = new Set(internal);
@@ -109,7 +117,11 @@ export function mergePrompt(
     customer.description,
     internal.description,
   );
-  const template = mergeScalar(base.template, customer.template, internal.template);
+  const template = mergeScalar(
+    base.template,
+    customer.template,
+    internal.template,
+  );
   const tags = mergeTags(base.tags, customer.tags, internal.tags);
 
   const scalars = [title, description, template];
@@ -123,7 +135,9 @@ export function mergePrompt(
 }
 
 /** How the customer resolved each conflicting scalar field. */
-export type ConflictPicks = Partial<Record<ScalarField, "customer" | "internal">>;
+export type ConflictPicks = Partial<
+  Record<ScalarField, "customer" | "internal">
+>;
 
 /**
  * Produce the final content to persist after a merge. Non-conflicting fields use

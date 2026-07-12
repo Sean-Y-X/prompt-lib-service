@@ -35,10 +35,7 @@ export const prompts = pgTable(
     title: text("title").notNull(),
     description: text("description").notNull(),
     template: text("template").notNull(),
-    tags: text("tags")
-      .array()
-      .notNull()
-      .default(sql`'{}'::text[]`),
+    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
     // Denormalized pointer to the latest version number in prompt_versions.
     currentVersion: integer("current_version").notNull().default(1),
     renderCount: integer("render_count").notNull().default(0),

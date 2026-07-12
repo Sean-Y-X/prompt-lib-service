@@ -34,7 +34,9 @@ export type PromptDraft = z.infer<typeof draftSchema>;
  * Turn a free-text brief into a structured prompt draft. The result is meant to be
  * reviewed and edited by the user before saving — never persisted directly.
  */
-export async function draftPromptFromBrief(brief: string): Promise<PromptDraft> {
+export async function draftPromptFromBrief(
+  brief: string,
+): Promise<PromptDraft> {
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     throw new Error(
       "GOOGLE_GENERATIVE_AI_API_KEY is not set — AI drafting is unavailable.",
