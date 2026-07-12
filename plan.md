@@ -102,19 +102,44 @@ All bodies validated with `zod` schemas derived from the Drizzle table defs (`dr
 
 ## UI Design
 
-Single-page list/detail layout (`src/app/page.tsx` + client components), backed by TanStack Query hooks per endpoint above:
+**Multi-route** app (not a single page), built with shadcn/Base UI + Tailwind, backed by
+TanStack Query hooks per endpoint. Routes are real URLs — shareable, refresh-safe,
+back-button friendly (a deliberate "UX clarity and predictability" choice):
 
-- **Left panel**: search bar (debounced, hits `GET /api/prompts?q=`), prompt cards (title, description snippet, tags, last-used), "New Prompt" button, "update available" badge on cards with a pending merge
-- **Create/Edit form**: title, description, template (with `{{var}}` syntax hint), tags input; AI-assist mode (free-text brief → drafted fields, human reviews before saving)
-- **Detail panel**: rendered template view, variable-input render tester (auto-detects `{{vars}}` from template, live output), usage stats, edit action
-- **Update/merge panel** (shown when `GET .../updates` reports one pending): auto-merged field summary, diff view for conflicting scalar fields, Accept / Keep-mine actions
+- **`/` — Library (list)**: debounced search box (hits `GET /api/prompts?q=`); a
+  **segmented filter `All / Internal / Mine`** (uses the `kind` query param the API
+  already supports); a "New Prompt" button; prompt cards showing title, description
+  snippet, tag chips, a small **kind badge** (`Internal` / `Yours`), and an **"Update
+  available"** marker on customer copies with a pending merge. Clicking a card →
+  `/prompts/[id]`.
+- **`/prompts/[id]` — Detail**: "back to library" link, then **tabs**:
+  - *Overview*: title, description, tags, template with `{{variables}}` highlighted,
+    usage stats (render count, last used), **Edit** button. Internal prompts show a
+    **Fork ("Use this prompt")** action; customer copies show the **update banner** when
+    one is pending (opens the merge dialog — see Q2).
+  - *Render*: auto-detects `{{vars}}` from the template, renders an input per variable,
+    calls `POST /:id/render`, shows substituted output (warns on unfilled vars), and
+    reflects the bumped usage stats.
+  - (No History tab — cut to stay minimal, though the data exists.)
+- **`/prompts/new` — Create** and **`/prompts/[id]/edit` — Edit**: same full-page form
+  (title, description, template with a `{{var}}` hint, tags). Create adds a
+  **"Write manually" / "Draft with AI"** toggle; AI mode posts a brief to
+  `POST /api/prompts/draft`, fills the form for the user to review/tweak, and never
+  auto-saves.
+- **Merge dialog** (Q2, modal over the detail page): auto-merged field summary, a
+  side-by-side diff + radio choice per conflicting scalar field, merged tag set,
+  and **Accept** (applies merge + conflict picks) / **Keep mine** actions.
 
 ## File Structure
 
 ```
 src/
   app/
-    page.tsx                      # library list + detail shell
+    layout.tsx                    # QueryClient provider + Toaster
+    page.tsx                      # / — library list (search, segmented filter, cards)
+    prompts/[id]/page.tsx         # detail (Overview/Render tabs, fork, update banner)
+    prompts/new/page.tsx          # create form (+ AI-assist toggle)
+    prompts/[id]/edit/page.tsx    # edit form
     api/prompts/route.ts          # POST create, GET search
     api/prompts/[id]/route.ts     # GET, PATCH
     api/prompts/[id]/render/route.ts
@@ -122,19 +147,20 @@ src/
     api/prompts/[id]/updates/route.ts
     api/prompts/[id]/updates/accept/route.ts
     api/prompts/[id]/updates/dismiss/route.ts
-  db/
-    schema.ts
-    index.ts                      # drizzle(neon(...)) client
-    seed.ts                       # internal prompt + forked custom copy + a second internal version
+  db/  (schema.ts, index.ts, queries.ts, seed.ts)
   lib/
     render-template.ts            # {{var}} substitution
     merge.ts                      # field-level 3-way merge (scalar + tag-set logic)
-    ai.ts                         # generateObject(gemini) → zod-validated prompt draft
+    ai.ts                         # AI SDK generateText/Output.object → zod-validated draft
+    schemas.ts, http.ts           # zod request schemas + route helpers
+    api-client.ts                 # typed fetch wrappers for the API
+    query-provider.tsx            # TanStack Query client provider
   components/
-    prompt-list.tsx, prompt-card.tsx, prompt-form.tsx,
-    render-panel.tsx, update-banner.tsx, diff-view.tsx
+    prompt-card.tsx, prompt-form.tsx, render-panel.tsx,
+    update-banner.tsx, merge-dialog.tsx, diff-view.tsx, kind-badge.tsx
   hooks/
-    use-prompts.ts, use-prompt.ts, use-update-prompt.ts, use-prompt-updates.ts  # TanStack Query wrappers
+    use-prompts.ts (list/search), use-prompt.ts (get), use-prompt-mutations.ts
+    (create/update/render/fork), use-prompt-updates.ts (status/accept/dismiss)
 drizzle.config.ts
 ```
 
@@ -142,7 +168,7 @@ drizzle.config.ts
 
 1. **Setup**: install Drizzle, `@neondatabase/serverless`, `drizzle-kit`, `zod`, `drizzle-zod`, `@tanstack/react-query`, `ai` + `@ai-sdk/google`, shadcn/ui; provision Neon project (Sydney / `ap-southeast-2` region) and paste `DATABASE_URL` into `.env.local`; `drizzle.config.ts`; `schema.ts`; run first migration
 2. **Q1 API**: create/get/search/update/render route handlers + `render-template.ts`
-3. **Q1 UI**: list+search, create/edit form, detail+render panel, wired via TanStack Query hooks
+3. **Q1 UI** (multi-route): `/` list+search+segmented filter, `/prompts/new` + `/prompts/[id]/edit` form (with AI-assist), `/prompts/[id]` detail with Overview/Render tabs, wired via TanStack Query hooks
 4. **Usage tracking**: render count/last-used wired into render endpoint and displayed in detail panel
 5. **Q2 versioning plumbing**: every mutation writes a `prompt_versions` row; fork endpoint
 6. **Q2 merge logic**: `lib/merge.ts` (scalar 3-way + tag set-merge), `updates` GET endpoint
