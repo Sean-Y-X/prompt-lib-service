@@ -1,4 +1,5 @@
 import { and, arrayOverlaps, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import {
   buildMergedContent,
   type ConflictPicks,
@@ -96,8 +97,13 @@ export interface SearchParams {
  * Search across title, description, and tags. `q` matches title/description via
  * ILIKE and also any tag (by flattening the array to text). `tags` filters to
  * prompts sharing at least one of the given tags.
+ *
+ * Each row carries a computed `updateAvailable` (self-join to the source prompt:
+ * `source.currentVersion > syncedSourceVersion`).
  */
-export async function searchPrompts(params: SearchParams): Promise<Prompt[]> {
+export async function searchPrompts(
+  params: SearchParams,
+): Promise<(Prompt & { updateAvailable: boolean })[]> {
   const conditions = [];
 
   if (params.q) {
@@ -117,11 +123,22 @@ export async function searchPrompts(params: SearchParams): Promise<Prompt[]> {
     conditions.push(eq(prompts.kind, params.kind));
   }
 
-  return db
-    .select()
+  const source = alias(prompts, "source");
+  const rows = await db
+    .select({
+      prompt: prompts,
+      // coalesce → false for internal prompts and unforked copies (no join match).
+      updateAvailable: sql<boolean>`coalesce(${source.currentVersion} > ${prompts.syncedSourceVersion}, false)`,
+    })
     .from(prompts)
+    .leftJoin(source, eq(prompts.sourcePromptId, source.id))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(prompts.updatedAt));
+
+  return rows.map((row) => ({
+    ...row.prompt,
+    updateAvailable: row.updateAvailable,
+  }));
 }
 
 export interface CreatePromptInput {

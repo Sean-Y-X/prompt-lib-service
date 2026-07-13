@@ -39,6 +39,15 @@ export interface RenderResult {
   lastRenderedAt: string;
 }
 
+/**
+ * A prompt as returned by the list/search endpoint. Carries a computed
+ * `updateAvailable` (whether its internal source has advanced). The single-prompt GET returns a plain
+ * `Prompt` — update details for one prompt come from the `/updates` endpoint.
+ */
+export interface PromptListItem extends Prompt {
+  updateAvailable: boolean;
+}
+
 /** Reconciliation status + field-level merge preview for a customer copy. */
 export interface UpdateStatus {
   hasSource: boolean;

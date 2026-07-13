@@ -4,6 +4,7 @@ import { Pencil } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { BackLink } from "@/components/back-link";
+import { ForkButton } from "@/components/fork-button";
 import { KindBadge } from "@/components/kind-badge";
 import { RenderPanel } from "@/components/render-panel";
 import { TemplateText } from "@/components/template-text";
@@ -12,11 +13,16 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UpdateBanner } from "@/components/update-banner";
+import { usePromptUpdates } from "@/hooks/use-prompt-updates";
 import { usePrompt } from "@/hooks/use-prompts";
 
 export default function PromptDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: prompt, isLoading, isError } = usePrompt(id);
+  const isCustomCopy =
+    prompt?.kind === "custom" && Boolean(prompt.sourcePromptId);
+  const { data: updateStatus } = usePromptUpdates(id, isCustomCopy);
 
   if (isLoading) {
     return (
@@ -54,13 +60,16 @@ export default function PromptDetailPage() {
             </p>
           )}
         </div>
-        <Button
-          variant="outline"
-          nativeButton={false}
-          render={<Link href={`/prompts/${prompt.id}/edit`} />}
-        >
-          <Pencil className="size-4" /> Edit
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          {prompt.kind === "internal" && <ForkButton promptId={prompt.id} />}
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href={`/prompts/${prompt.id}/edit`} />}
+          >
+            <Pencil className="size-4" /> Edit
+          </Button>
+        </div>
       </div>
 
       {prompt.tags.length > 0 && (
@@ -71,6 +80,10 @@ export default function PromptDetailPage() {
             </Badge>
           ))}
         </div>
+      )}
+
+      {updateStatus?.updateAvailable && (
+        <UpdateBanner promptId={prompt.id} status={updateStatus} />
       )}
 
       <Tabs defaultValue="overview" className="mt-6">

@@ -2,6 +2,7 @@ import type {
   Prompt,
   PromptContent,
   PromptKind,
+  PromptListItem,
   RenderResult,
   UpdateStatus,
 } from "./types";
@@ -48,12 +49,12 @@ export interface ListParams {
 }
 
 export const api = {
-  list: ({ q, kind }: ListParams): Promise<Prompt[]> => {
+  list: ({ q, kind }: ListParams): Promise<PromptListItem[]> => {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (kind) params.set("kind", kind);
     const qs = params.toString();
-    return http<Prompt[]>(`/api/prompts${qs ? `?${qs}` : ""}`);
+    return http<PromptListItem[]>(`/api/prompts${qs ? `?${qs}` : ""}`);
   },
 
   get: (id: string): Promise<Prompt> => http<Prompt>(`/api/prompts/${id}`),

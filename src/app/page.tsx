@@ -77,7 +77,11 @@ export default function LibraryPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {data.map((prompt) => (
-              <PromptCard key={prompt.id} prompt={prompt} />
+              <PromptCard
+                key={prompt.id}
+                prompt={prompt}
+                updateAvailable={prompt.updateAvailable}
+              />
             ))}
           </div>
         )}
