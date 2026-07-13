@@ -59,4 +59,8 @@ export const acceptUpdateSchema = z.object({
       template: z.enum(["customer", "internal"]).optional(),
     })
     .default({}),
+  // Optimistic-concurrency guard: the source version the merge preview was
+  // computed against. If the source has published again since, accept is
+  // rejected (409) so picks are never applied to content the user hasn't seen.
+  expectedSourceVersion: z.number().int().min(1).optional(),
 });

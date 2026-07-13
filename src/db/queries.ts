@@ -332,16 +332,24 @@ export async function getUpdateStatus(
 
 type ReconcileResult =
   | { ok: true; prompt: Prompt }
-  | { ok: false; reason: "not-found" | "no-source" | "no-update" };
+  | {
+      ok: false;
+      reason: "not-found" | "no-source" | "no-update" | "stale-preview";
+    };
 
 /**
  * Accept the internal update: persist the field-level merge (auto-merged fields +
  * the customer's picks for conflicts) and advance `syncedSourceVersion`. Writes a
  * new snapshot marking the sync point.
+ *
+ * `expectedSourceVersion` (when provided) is the source version the client's merge
+ * preview was computed against; if the source has published again since, the
+ * accept is refused so conflict picks are never applied to unseen content.
  */
 export async function acceptUpdate(
   id: string,
   picks: ConflictPicks,
+  expectedSourceVersion?: number,
 ): Promise<ReconcileResult> {
   return db.transaction(async (tx) => {
     const [custom] = await tx
@@ -364,6 +372,12 @@ export async function acceptUpdate(
     const synced = custom.syncedSourceVersion ?? 0;
     if (source.currentVersion <= synced)
       return { ok: false, reason: "no-update" };
+    if (
+      expectedSourceVersion !== undefined &&
+      source.currentVersion !== expectedSourceVersion
+    ) {
+      return { ok: false, reason: "stale-preview" };
+    }
 
     const base =
       (await getVersionContent(tx, source.id, synced)) ?? toContent(source);

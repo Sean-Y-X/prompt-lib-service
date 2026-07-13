@@ -115,7 +115,7 @@ REST endpoints (all under `/api/prompts`), usable directly via curl/Postman:
 | `POST` | `/api/prompts/draft` | AI-draft from a brief (`{ brief }`) — not persisted |
 | `POST` | `/api/prompts/:id/fork` | Fork an internal prompt into a customer copy |
 | `GET` | `/api/prompts/:id/updates` | Reconciliation status + field-level merge preview |
-| `POST` | `/api/prompts/:id/updates/accept` | Apply the merge (`{ resolutions }`) |
+| `POST` | `/api/prompts/:id/updates/accept` | Apply the merge (`{ resolutions, expectedSourceVersion? }`); 409 if the source published again since the preview |
 | `POST` | `/api/prompts/:id/updates/dismiss` | "Keep mine" — acknowledge without changing content |
 
 ## Scope

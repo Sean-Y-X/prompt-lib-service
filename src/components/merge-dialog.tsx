@@ -54,25 +54,31 @@ export function MergeDialog({
   if (!merge) return null;
 
   const onAccept = () =>
-    accept.mutate(picks, {
-      onSuccess: () => {
-        toast.success("Internal update applied.");
-        onOpenChange(false);
+    accept.mutate(
+      {
+        resolutions: picks,
+        // Guards against the source publishing again between preview and accept:
+        // the server 409s, the updates query refetches, and the dialog remounts
+        // (keyed on sourceVersion) with the fresh merge.
+        expectedSourceVersion: status.sourceVersion ?? undefined,
       },
-      onError: (e) => toast.error(e.message),
-    });
-
-  const onKeepMine = () =>
-    dismiss.mutate(
-      {},
       {
         onSuccess: () => {
-          toast.success("Kept your version.");
+          toast.success("Internal update applied.");
           onOpenChange(false);
         },
         onError: (e) => toast.error(e.message),
       },
     );
+
+  const onKeepMine = () =>
+    dismiss.mutate(undefined, {
+      onSuccess: () => {
+        toast.success("Kept your version.");
+        onOpenChange(false);
+      },
+      onError: (e) => toast.error(e.message),
+    });
 
   const tagsChanged =
     merge.tags.added.length > 0 || merge.tags.removed.length > 0;

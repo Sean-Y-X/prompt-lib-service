@@ -108,6 +108,12 @@ compute the base.)
 Conflicts default to **"keep mine"** — the safe, no-data-loss choice if the user just
 clicks Accept without deciding.
 
+Accept also carries an optimistic-concurrency guard: the client sends the
+`sourceVersion` its merge preview was computed against (`expectedSourceVersion`), and
+if the source has published again in between, the server rejects with 409 and the
+client refetches the preview — conflict picks are never applied to content the
+customer hasn't seen.
+
 ### No-op guards
 Two places short-circuit redundant history:
 - `acceptUpdate` — if the source advanced but the merge nets to no change (e.g. internal

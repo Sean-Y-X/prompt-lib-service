@@ -29,10 +29,7 @@ export function useForkPrompt() {
   });
 }
 
-function useReconcile(
-  id: string,
-  action: (r: ConflictResolutions) => Promise<Prompt>,
-) {
+function useReconcile<V>(id: string, action: (vars: V) => Promise<Prompt>) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: action,
@@ -41,15 +38,26 @@ function useReconcile(
       qc.invalidateQueries({ queryKey: queryKeys.updates(id) });
       qc.invalidateQueries({ queryKey: ["prompts"] });
     },
+    // A failed accept (e.g. 409: the source published again since the preview)
+    // means the preview is stale — refetch it so the dialog shows current state.
+    onError: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.updates(id) });
+    },
   });
 }
 
 /** Accept the internal update, applying conflict resolutions. */
 export function useAcceptUpdate(id: string) {
-  return useReconcile(id, (resolutions) => api.acceptUpdate(id, resolutions));
+  return useReconcile(
+    id,
+    (vars: {
+      resolutions: ConflictResolutions;
+      expectedSourceVersion?: number;
+    }) => api.acceptUpdate(id, vars.resolutions, vars.expectedSourceVersion),
+  );
 }
 
 /** Dismiss the internal update ("keep mine"). */
 export function useDismissUpdate(id: string) {
-  return useReconcile(id, () => api.dismissUpdate(id));
+  return useReconcile(id, (_vars: undefined) => api.dismissUpdate(id));
 }

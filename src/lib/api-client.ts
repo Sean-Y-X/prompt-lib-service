@@ -101,10 +101,13 @@ export const api = {
   acceptUpdate: (
     id: string,
     resolutions: ConflictResolutions,
+    // The source version the merge preview was computed against; the server
+    // 409s if the source has published again since (stale preview).
+    expectedSourceVersion?: number,
   ): Promise<Prompt> =>
     http<Prompt>(`/api/prompts/${id}/updates/accept`, {
       method: "POST",
-      body: JSON.stringify({ resolutions }),
+      body: JSON.stringify({ resolutions, expectedSourceVersion }),
     }),
 
   dismissUpdate: (id: string): Promise<Prompt> =>
