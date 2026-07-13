@@ -42,7 +42,7 @@ async function seed() {
     },
   });
 
-  await createPrompt({
+  const redactor = await createPrompt({
     kind: "internal",
     content: {
       title: "PII Redactor",
@@ -50,6 +50,41 @@ async function seed() {
       template:
         "Redact all personally identifiable information (names, emails, phone numbers, addresses) from the text below, replacing each with a [REDACTED] tag:\n\n{{text}}",
       tags: ["safety", "privacy", "redaction"],
+    },
+  });
+
+  await createPrompt({
+    kind: "internal",
+    content: {
+      title: "Sentiment Analyzer",
+      description:
+        "Labels text as positive, negative, or neutral with a confidence score.",
+      template:
+        "Analyze the sentiment of the following text. Respond with a label (positive / negative / neutral), a confidence score from 0 to 1, and a one-sentence justification:\n\n{{text}}",
+      tags: ["analysis", "sentiment", "classification"],
+    },
+  });
+
+  await createPrompt({
+    kind: "internal",
+    content: {
+      title: "Email Tone Rewriter",
+      description: "Rewrites an email draft in a requested tone.",
+      template:
+        "Rewrite the email below in a {{tone}} tone. Preserve all facts, names, and requests — only change the phrasing:\n\n{{email}}",
+      tags: ["writing", "email", "tone"],
+    },
+  });
+
+  const codeReview = await createPrompt({
+    kind: "internal",
+    content: {
+      title: "Code Review Assistant",
+      description:
+        "Reviews a code diff for bugs, style issues, and missing tests.",
+      template:
+        "Review the following diff. List correctness bugs first, then style issues, then any missing test coverage. Reference line numbers where possible:\n\n{{diff}}",
+      tags: ["engineering", "code-review", "quality"],
     },
   });
 
@@ -92,8 +127,38 @@ async function seed() {
       "You are a support classifier. Categorize this ticket: {{ticket}}",
   });
 
+  console.log("Setting up additional pending-update scenarios…");
+
+  // Clean fast-forward: a customer forks the PII Redactor and never touches it,
+  // then the internal team publishes v2. Every changed field auto-adopts — no
+  // conflicts, just an "update available" badge.
+  const redactorForkResult = await forkPrompt(redactor.id);
+  if (!redactorForkResult.ok)
+    throw new Error(`Fork failed: ${redactorForkResult.reason}`);
+  await updatePrompt(redactor.id, {
+    template:
+      "Redact all personally identifiable information (names, emails, phone numbers, addresses, SSNs, credit card numbers) from the text below, replacing each with a [REDACTED:<type>] tag:\n\n{{text}}",
+    tags: ["safety", "privacy", "redaction", "compliance"],
+  });
+
+  // Non-overlapping edits: the customer edits one field (tags), the internal
+  // team edits different fields (description + template). The update applies
+  // cleanly on top of the customer's changes — local edits, but no conflict.
+  const reviewForkResult = await forkPrompt(codeReview.id);
+  if (!reviewForkResult.ok)
+    throw new Error(`Fork failed: ${reviewForkResult.reason}`);
+  await updatePrompt(reviewForkResult.prompt.id, {
+    tags: ["engineering", "code-review", "quality", "backend-team"],
+  });
+  await updatePrompt(codeReview.id, {
+    description:
+      "Reviews a code diff for bugs, security issues, style problems, and missing tests.",
+    template:
+      "Review the following diff. List correctness bugs first, then security concerns, then style issues, then any missing test coverage. Reference line numbers where possible:\n\n{{diff}}",
+  });
+
   console.log("\nSeed complete. The demo now contains:");
-  console.log("  • 3 standalone prompts (search, tags, render)");
+  console.log("  • 6 standalone prompts (search, tags, render)");
   console.log(
     "  • 'Customer Support Classifier' (internal, v2) — try Fork / editing to publish updates",
   );
@@ -101,6 +166,12 @@ async function seed() {
     "  • A forked customer copy with a PENDING update: description auto-adopts,",
   );
   console.log("    template is a conflict → open it to walk the merge dialog.");
+  console.log(
+    "  • A forked 'PII Redactor' with a pending update and no local edits (clean fast-forward).",
+  );
+  console.log(
+    "  • A forked 'Code Review Assistant' with local edits that don't overlap the update (clean merge).",
+  );
   process.exit(0);
 }
 
