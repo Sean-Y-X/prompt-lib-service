@@ -31,6 +31,13 @@ const draftSchema = z.object({
 export type PromptDraft = z.infer<typeof draftSchema>;
 
 /**
+ * A drafting failure whose message is safe to show to the client (e.g. a missing
+ * API key). Raw provider/SDK errors are NOT wrapped in this — the route logs them
+ * server-side and reports a generic message instead.
+ */
+export class AiDraftError extends Error {}
+
+/**
  * Turn a free-text brief into a structured prompt draft. The result is meant to be
  * reviewed and edited by the user before saving — never persisted directly.
  */
@@ -38,8 +45,8 @@ export async function draftPromptFromBrief(
   brief: string,
 ): Promise<PromptDraft> {
   if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-    throw new Error(
-      "GOOGLE_GENERATIVE_AI_API_KEY is not set — AI drafting is unavailable.",
+    throw new AiDraftError(
+      "AI drafting is unavailable — no API key is configured.",
     );
   }
 
