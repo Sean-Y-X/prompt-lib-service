@@ -83,6 +83,12 @@ export function MergeDialog({
   const tagsChanged =
     merge.tags.added.length > 0 || merge.tags.removed.length > 0;
 
+  // Legend is only relevant when at least one field renders a diff.
+  const hasDiffs = SCALAR_FIELDS.some(({ field }) => {
+    const s = merge[field].status;
+    return s === "internal" || s === "conflict";
+  });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] gap-0 overflow-y-auto sm:max-w-2xl">
@@ -98,6 +104,20 @@ export function MergeDialog({
         </DialogHeader>
 
         <div className="space-y-5 py-4">
+          {hasDiffs && (
+            <p className="text-xs text-muted-foreground">
+              In the diffs below,{" "}
+              <span className="rounded bg-red-500/20 px-1 text-red-700 line-through dark:text-red-300">
+                yours
+              </span>{" "}
+              is your current text and{" "}
+              <span className="rounded bg-green-500/20 px-1 text-green-700 dark:text-green-300">
+                internal update
+              </span>{" "}
+              is the incoming change.
+            </p>
+          )}
+
           {!merge.hasChanges && (
             <p className="text-sm text-muted-foreground">
               The source advanced but there is nothing new to merge into your
