@@ -54,6 +54,28 @@ descriptions, renaming, etc., a join table would become worthwhile.)
 **Search** uses `ILIKE` on title/description plus array matching on tags. Fine at this
 scale; `pg_trgm` or full-text search is the documented next step if it needed to grow.
 
+**Why Postgres, and why Neon.** The data is inherently relational — Q2 needs
+prompt → version lineage with foreign keys, uniqueness on `(promptId, versionNumber)`,
+and a queryable common ancestor. Referential integrity is the feature here; a document
+store would mean reimplementing it by hand for a small, well-defined schema (none of
+NoSQL's selling points — flexible schema, horizontal scale — apply). Within SQL:
+
+- **SQLite** would give reviewers zero-setup (`clone && install && dev`), but has no
+  native array type for tags, a weaker concurrent-write story, and demonstrates less
+  about how a production service would actually be deployed.
+- **Local Postgres via Docker** adds a reviewer prerequisite and setup steps.
+- **Supabase / Vercel Postgres** are the same category as Neon; Supabase bundles
+  auth/realtime this scope doesn't need.
+- **Neon** is real Postgres with scale-to-zero (free tier, no idle cost), first-class
+  Drizzle support, and a serverless driver designed for the real operational concern:
+  serverless route handlers opening one TCP connection per invocation can exhaust
+  connection limits — Neon's pooled/WebSocket drivers are the direct answer. It also
+  pairs natively with Vercel for a live demo.
+
+(Aside: Neon's *database branching* superficially resembles Q2's fork-and-reconcile
+problem. Infra-level branching was considered and rejected — an application-level
+version model is queryable, auditable, and doesn't need a DB branch per customer.)
+
 ---
 
 ## 3. Q2 — reconciliation design (the core)
@@ -133,9 +155,22 @@ endpoint, behaviour keyed on `kind` — no special mechanism needed.
 ## 4. API design
 
 **Next.js Route Handlers, REST-shaped** (`POST /api/prompts`, `GET /api/prompts/:id`,
-`POST /api/prompts/:id/render`, …). Chosen over Server Actions or tRPC because "API
-design" is an explicit evaluation criterion and these are real, curl-able,
-verb/URL-shaped endpoints — the API surface is visible rather than hidden behind RPC.
+`POST /api/prompts/:id/render`, …). "API design" is an explicit evaluation criterion,
+and these are real, curl-able, verb/URL-shaped endpoints — the API surface is visible
+rather than hidden. Alternatives considered:
+
+- **Server Actions** — blur the line with "expose APIs": there's no distinct API
+  surface to point at or exercise with curl/Postman.
+- **tRPC** — end-to-end type safety with less boilerplate, but procedures aren't
+  URL/verb-shaped. Great when DX is the priority; reads as dodging the ask when API
+  design itself is being graded.
+- **Separate Express/Fastify backend** — a second deployable and runtime with no
+  payoff at single-user, no-auth scope.
+- **GraphQL** — schema/resolver overhead is overkill for ten well-defined endpoints.
+
+Handlers run on the **Node runtime, not Edge**: Drizzle + the Neon WebSocket driver
+need it, and Edge's cold-start benefit isn't worth its API restrictions at take-home
+traffic.
 
 **Validation with zod** on every request body, with a consistent JSON error envelope.
 
@@ -172,6 +207,19 @@ must refresh the list *and* the detail *and*, for Q2, other copies' update statu
 Query keys are namespaced so, e.g., invalidating all `["updates"]` after an edit doesn't
 clobber the detail cache we just wrote.
 
+Why a library at all, and why this one:
+
+- **Raw `fetch` + `useState`/`useEffect`** is viable for read-mostly CRUD, but here
+  you'd own request cancellation by hand (a slow early search response arriving after
+  a fast later one silently overwrites it with stale results), a cache (reopening a
+  detail view shouldn't refetch), and cross-component refetch plumbing — exactly the
+  ad-hoc state management that grows race-condition bugs, in an exercise where state
+  handling is evaluated.
+- **SWR** covers caching/revalidation with a smaller API, but its mutation story is
+  more manual. TanStack's `useMutation` + query-key invalidation makes "mutate here,
+  refresh there" — the heart of the Q2 accept/dismiss flow — declarative instead of
+  hand-wired callbacks.
+
 **shadcn/ui on Base UI primitives** + Tailwind — accessible components without building
 dialogs/tabs/inputs from scratch, and without looking over-polished.
 
@@ -185,10 +233,14 @@ dialogs/tabs/inputs from scratch, and without looking over-polished.
 - **Field-level (not line-level) merge** — cheaper and more correct for prompt text; the
   documented cost is that you can't merge two edits *within* the same template line, only
   choose one side for that field.
-- **AI provider = Gemini** (`gemini-3.1-flash-lite`) behind the Vercel AI SDK, chosen for
-  a genuine free tier. The SDK abstraction makes the provider a one-line swap, and
-  structured output is validated against a schema. AI drafting is best-effort and fully
-  optional — the app degrades gracefully without a key.
+- **AI provider = Gemini** (`gemini-3.1-flash-lite`) behind the Vercel AI SDK. An
+  optional drafting nicety doesn't justify paid API spend, which ruled out
+  Claude/OpenAI (no free tier); Gemini has the most generous genuinely-free tier of
+  the mainstream providers (Groq's free open-model serving was the runner-up). Calling
+  it through the AI SDK rather than the Gemini SDK directly makes the provider a
+  one-line swap and returns structured output validated against a zod schema
+  (`{title, description, template, tags}`) instead of hand-parsed JSON. AI drafting is
+  best-effort and fully optional — the app degrades gracefully without a key.
 - **Dev & build on webpack, not Turbopack.** Turbopack's dev HMR throws on an
   unrecognised worker "ping" message
   ([vercel/next.js#86495](https://github.com/vercel/next.js/issues/86495)), and its build
