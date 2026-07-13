@@ -52,7 +52,7 @@ export default function LibraryPage() {
           options={[
             { label: "All", value: "all" },
             { label: "Internal", value: "internal" },
-            { label: "Mine", value: "custom" },
+            { label: "Yours", value: "custom" },
           ]}
         />
       </div>

@@ -148,7 +148,7 @@ export function MergeDialog({
 
         <DialogFooter>
           <Button variant="ghost" onClick={onKeepMine} disabled={busy}>
-            Keep mine
+            Keep yours
           </Button>
           <Button onClick={onAccept} disabled={busy}>
             {accept.isPending ? "Applying…" : "Accept update"}
@@ -216,7 +216,7 @@ function ScalarFieldRow({
             value={pick ?? "customer"}
             onChange={onPick}
             options={[
-              { label: "Keep mine", value: "customer" },
+              { label: "Keep yours", value: "customer" },
               { label: "Take theirs", value: "internal" },
             ]}
           />
