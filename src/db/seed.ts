@@ -53,7 +53,7 @@ async function seed() {
     },
   });
 
-  await createPrompt({
+  const sentiment = await createPrompt({
     kind: "internal",
     content: {
       title: "Sentiment Analyzer",
@@ -65,7 +65,7 @@ async function seed() {
     },
   });
 
-  await createPrompt({
+  const toneRewriter = await createPrompt({
     kind: "internal",
     content: {
       title: "Email Tone Rewriter",
@@ -157,6 +157,62 @@ async function seed() {
       "Review the following diff. List correctness bugs first, then security concerns, then style issues, then any missing test coverage. Reference line numbers where possible:\n\n{{diff}}",
   });
 
+  // Full conflict: both sides edited every content field (description, tags,
+  // AND template) since the fork point → the merge dialog shows a conflict on
+  // all three at once.
+  const triager = await createPrompt({
+    kind: "internal",
+    content: {
+      title: "Bug Report Triager",
+      description: "Triages incoming bug reports.",
+      template: "Triage this bug report and assign a severity:\n\n{{report}}",
+      tags: ["engineering", "triage"],
+    },
+  });
+  const triagerForkResult = await forkPrompt(triager.id);
+  if (!triagerForkResult.ok)
+    throw new Error(`Fork failed: ${triagerForkResult.reason}`);
+  await updatePrompt(triagerForkResult.prompt.id, {
+    description: "Triages bug reports for the mobile team's backlog.",
+    template:
+      "Triage this bug report: assign a severity and route it to the right mobile squad:\n\n{{report}}",
+    tags: ["engineering", "triage", "mobile"],
+  });
+  await updatePrompt(triager.id, {
+    description:
+      "Triages incoming bug reports by severity, component, and reproducibility.",
+    template:
+      "You are a bug triager. For the report below, determine severity (P0–P3), affected component, and whether it is reproducible:\n\n{{report}}",
+    tags: ["engineering", "triage", "quality"],
+  });
+
+  // Tags conflict: both sides edited the tag list since the fork point. The
+  // customer added their own tag while the internal team reworked the taxonomy,
+  // so the tags field needs a manual merge decision.
+  const sentimentForkResult = await forkPrompt(sentiment.id);
+  if (!sentimentForkResult.ok)
+    throw new Error(`Fork failed: ${sentimentForkResult.reason}`);
+  await updatePrompt(sentimentForkResult.prompt.id, {
+    tags: ["analysis", "sentiment", "classification", "voice-of-customer"],
+  });
+  await updatePrompt(sentiment.id, {
+    tags: ["nlp", "sentiment", "classification"],
+  });
+
+  // Description conflict: both sides rewrote the description since the fork
+  // point → the description field needs a manual merge decision.
+  const toneForkResult = await forkPrompt(toneRewriter.id);
+  if (!toneForkResult.ok)
+    throw new Error(`Fork failed: ${toneForkResult.reason}`);
+  await updatePrompt(toneForkResult.prompt.id, {
+    description:
+      "Rewrites outbound customer emails in our house style and tone.",
+  });
+  await updatePrompt(toneRewriter.id, {
+    description:
+      "Rewrites an email draft in a requested tone without altering its meaning.",
+  });
+
   console.log("\nSeed complete. The demo now contains:");
   console.log("  • 6 standalone prompts (search, tags, render)");
   console.log(
@@ -171,6 +227,15 @@ async function seed() {
   );
   console.log(
     "  • A forked 'Code Review Assistant' with local edits that don't overlap the update (clean merge).",
+  );
+  console.log(
+    "  • A forked 'Sentiment Analyzer' where both sides changed tags → tags conflict.",
+  );
+  console.log(
+    "  • A forked 'Email Tone Rewriter' where both sides changed the description → description conflict.",
+  );
+  console.log(
+    "  • A forked 'Bug Report Triager' where both sides changed description, tags, AND template → all-fields conflict.",
   );
   process.exit(0);
 }
