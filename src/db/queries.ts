@@ -107,7 +107,10 @@ export async function searchPrompts(
   const conditions = [];
 
   if (params.q) {
-    const like = `%${params.q}%`;
+    // Escape LIKE wildcards so a literal search for "100%" or "a_b" doesn't
+    // behave as a pattern (backslash is Postgres's default LIKE escape char).
+    const escaped = params.q.replace(/[\\%_]/g, "\\$&");
+    const like = `%${escaped}%`;
     conditions.push(
       or(
         ilike(prompts.title, like),

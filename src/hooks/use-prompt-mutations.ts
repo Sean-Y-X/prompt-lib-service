@@ -24,14 +24,20 @@ export function useCreatePrompt() {
  * update-status (editing an internal prompt publishes a new version, which can make
  * updates available to its customer copies).
  */
-export function useUpdatePrompt(id: string) {
+export function useUpdatePrompt() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (patch: Partial<PromptContent>) => api.update(id, patch),
+    mutationFn: ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: Partial<PromptContent>;
+    }) => api.update(id, patch),
     onSuccess: (updated) => {
       // The PATCH response is authoritative — seed the detail cache directly
       // rather than invalidating it (which would refetch and discard this).
-      qc.setQueryData(queryKeys.prompt(id), updated);
+      qc.setQueryData(queryKeys.prompt(updated.id), updated);
       qc.invalidateQueries({ queryKey: ["prompts"] });
       // Editing an internal prompt publishes a version, changing update
       // availability for its customer copies; editing a copy changes its own

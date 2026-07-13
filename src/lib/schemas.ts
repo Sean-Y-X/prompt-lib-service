@@ -18,7 +18,7 @@ export const tagSchema = z.string().trim().min(1).max(40);
 export const promptContentSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(200),
   description: z.string().trim().max(2000),
-  template: z.string().min(1, "Template is required"),
+  template: z.string().min(1, "Template is required").max(10_000),
   tags: z.array(tagSchema).max(30),
 });
 export type PromptContentInput = z.infer<typeof promptContentSchema>;

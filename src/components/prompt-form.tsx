@@ -19,7 +19,7 @@ import type { PromptContent, PromptKind } from "@/lib/types";
 
 type Props =
   | { mode: "create" }
-  | { mode: "edit"; id: string; initial: PromptContent };
+  | { mode: "edit"; id: string; kind: PromptKind; initial: PromptContent };
 
 const EMPTY: PromptContent = {
   title: "",
@@ -39,7 +39,7 @@ export function PromptForm(props: Props) {
   const [brief, setBrief] = useState("");
 
   const create = useCreatePrompt();
-  const update = useUpdatePrompt(isEdit ? props.id : "");
+  const update = useUpdatePrompt();
   const draft = useDraftPrompt();
 
   const set = <K extends keyof PromptContent>(
@@ -65,13 +65,16 @@ export function PromptForm(props: Props) {
       return;
     }
     if (isEdit) {
-      update.mutate(content, {
-        onSuccess: (p) => {
-          toast.success("Prompt updated.");
-          router.push(`/prompts/${p.id}`);
+      update.mutate(
+        { id: props.id, patch: content },
+        {
+          onSuccess: (p) => {
+            toast.success("Prompt updated.");
+            router.push(`/prompts/${p.id}`);
+          },
+          onError: (err) => toast.error(err.message),
         },
-        onError: (err) => toast.error(err.message),
-      });
+      );
     } else {
       create.mutate(
         { kind, content },
@@ -90,6 +93,13 @@ export function PromptForm(props: Props) {
 
   return (
     <form onSubmit={submit} className="space-y-6">
+      {isEdit && props.kind === "internal" && (
+        <p className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+          This is an internal source prompt — saving publishes a new version,
+          and customer copies will be offered the update.
+        </p>
+      )}
+
       {!isEdit && (
         <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
           <div className="flex items-center gap-2 text-sm font-medium">

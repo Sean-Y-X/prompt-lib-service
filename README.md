@@ -107,7 +107,7 @@ REST endpoints (all under `/api/prompts`), usable directly via curl/Postman:
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/prompts?q=&kind=` | Search by title/description/tags; each row includes `updateAvailable` |
+| `GET` | `/api/prompts?q=&kind=&tags=a,b` | Search by title/description/tags (`tags` filters to prompts sharing at least one); each row includes `updateAvailable` |
 | `POST` | `/api/prompts` | Create (`{ kind, content }`) |
 | `GET` | `/api/prompts/:id` | Get one |
 | `PATCH` | `/api/prompts/:id` | Update (partial content; no-op edits don't create a version) |

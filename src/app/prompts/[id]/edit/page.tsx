@@ -25,6 +25,7 @@ export default function EditPromptPage() {
         <PromptForm
           mode="edit"
           id={prompt.id}
+          kind={prompt.kind}
           initial={{
             title: prompt.title,
             description: prompt.description,
