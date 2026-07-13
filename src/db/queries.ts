@@ -72,6 +72,25 @@ async function getVersionContent(
   return row ? toContent(row) : undefined;
 }
 
+/**
+ * Load the 3-way merge base: the source's snapshot at the copy's synced version.
+ * This must exist — forks/accepts/dismisses only ever pin `syncedSourceVersion`
+ * to a version that has a snapshot.
+ */
+async function getMergeBase(
+  runner: DbOrTx,
+  sourceId: string,
+  syncedVersion: number,
+): Promise<PromptContent> {
+  const base = await getVersionContent(runner, sourceId, syncedVersion);
+  if (!base) {
+    throw new Error(
+      `Missing version snapshot v${syncedVersion} for source prompt ${sourceId} — cannot compute merge base`,
+    );
+  }
+  return base;
+}
+
 function tagsEqual(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
   const sortedB = [...b].sort();
@@ -308,8 +327,7 @@ export async function getUpdateStatus(
   }
 
   const synced = custom.syncedSourceVersion ?? 0;
-  const base =
-    (await getVersionContent(db, source.id, synced)) ?? toContent(source);
+  const base = await getMergeBase(db, source.id, synced);
   const customerContent = toContent(custom);
   const merge = mergePrompt(base, customerContent, toContent(source));
 
@@ -379,8 +397,7 @@ export async function acceptUpdate(
       return { ok: false, reason: "stale-preview" };
     }
 
-    const base =
-      (await getVersionContent(tx, source.id, synced)) ?? toContent(source);
+    const base = await getMergeBase(tx, source.id, synced);
     const merge = mergePrompt(base, toContent(custom), toContent(source));
 
     if (!merge.hasChanges) {
