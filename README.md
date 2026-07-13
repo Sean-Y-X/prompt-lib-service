@@ -59,6 +59,7 @@ bun run dev            # http://localhost:3000
 | `bun run db:migrate` | Apply migrations |
 | `bun run db:seed` | Reset + seed demo data |
 | `bun run db:studio` | Open Drizzle Studio |
+| `bun run test` | Unit tests (merge logic, template rendering, request schemas) |
 | `bun run lint` / `bun run format` | Biome check / format |
 
 ## Example scenarios

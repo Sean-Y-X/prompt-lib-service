@@ -202,6 +202,10 @@ dialogs/tabs/inputs from scratch, and without looking over-polished.
 
 ## 7. Known limitations / future work
 
+- **Tests cover the pure core, not the HTTP layer.** Unit tests (`bun run test`)
+  cover the 3-way merge, template rendering, and request-schema edge cases — the
+  logic where correctness bugs would be silent. API routes and UI flows are
+  exercised via the seeded scenario; integration/E2E tests would be the next layer.
 - **Search** is `ILIKE`-based; would move to full-text / trigram indexes at scale.
 - **Version history is stored but not surfaced** in the UI (a "History" tab was cut to
   stay minimal). The data is all there.
